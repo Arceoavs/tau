@@ -1,29 +1,40 @@
 import pl from "tau-prolog";
+import express from "express";
 const session = pl.create(1000);
+const app = express();
 
-// Get Node.js argument: node ./script.js item
-const item = process.argv[2];
+const port = 3000;
+app.listen(port, () => {
+  console.log(`Tau app listening at http://localhost:${port}`);
+});
 
-const goal = `
+app.get("/", async (req, res) => {
+  const { plQuery } = req.query;
+  const goal = buildGoal(plQuery);
+
+  const answer = await executePrologProgram("index.pl", goal);
+  res.send(answer);
+});
+
+function buildGoal(item) {
+  return `
     item(id(ItemID), name(${item})),
     stock(item(ItemID), shop(ShopID), _, price(Price)),
     shop(id(ShopID), name(Shop), _).
 `;
+}
 
-// Consult program, query goal, and show answers
-session.consult("index.pl", {
-  success: () => {
-    session.query(goal, {
+function executePrologProgram(prologFile, goal) {
+  return new Promise((resolve, reject) => {
+    session.consult(prologFile, {
       success: () => {
-        const showAnswer = (x) => console.log(session.format_answer(x));
-        session.answers(showAnswer);
+        session.query(goal, {
+          success: () =>
+            session.answer((x) => resolve(session.format_answer(x))),
+          error: (err) => reject(session.format_error(err)),
+        });
       },
-      error: (err) => {
-        console.log(`There was an error with the query: ${err.toString()}`);
-      },
+      error: (err) => reject(session.format_error(err)),
     });
-  },
-  error: (err) => {
-    console.error(`There was an error with the program: ${err.toString()}`);
-  },
-});
+  });
+}
