@@ -4,16 +4,21 @@ const session = pl.create(1000);
 const app = express();
 
 const port = 3000;
-app.listen(port, () => {
-  console.log(`Tau app listening at http://localhost:${port}`);
-});
+app.listen(port, () =>
+  console.log(`Tau app listening at http://localhost:${port}`)
+);
 
 app.get("/", async (req, res) => {
   const { plQuery } = req.query;
   const goal = buildGoal(plQuery);
 
-  const answer = await executePrologProgram("index.pl", goal);
-  res.send(answer);
+  try {
+    const answer = await executePrologProgram("index.pl", goal);
+    res.send(answer);
+  } catch (error) {
+    console.error(error);
+    res.send("An error occured!");
+  }
 });
 
 function buildGoal(item) {
@@ -29,12 +34,11 @@ function executePrologProgram(prologFile, goal) {
     session.consult(prologFile, {
       success: () => {
         session.query(goal, {
-          success: () =>
-            session.answer((x) => resolve(session.format_answer(x))),
-          error: (err) => reject(session.format_error(err)),
+          success: () => session.answer((x) => resolve(x)),
+          error: (err) => reject(err),
         });
       },
-      error: (err) => reject(session.format_error(err)),
+      error: (err) => reject(err),
     });
   });
 }
